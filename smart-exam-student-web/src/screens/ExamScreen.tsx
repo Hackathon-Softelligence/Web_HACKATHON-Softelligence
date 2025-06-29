@@ -138,7 +138,7 @@ const ExamScreen: React.FC = () => {
     
     // Check against the .current property of the ref.
     // This value is always up-to-date, even between re-renders.
-    if (now - lastDetectionTimeRef.current < 5000) {
+    if (now - lastDetectionTimeRef.current < 3500) {
         return;
     }
     
@@ -160,7 +160,7 @@ const ExamScreen: React.FC = () => {
                 const newCount = currentCount + 1;
                 console.log(`Violation #${newCount} recorded.`);
 
-                if (newCount >= 8) {
+                if (newCount >= 10) {
                     alert("Too many violations detected. Exam will be submitted automatically.");
                     navigate("/submit");
                 }
