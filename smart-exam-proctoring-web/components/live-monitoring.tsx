@@ -1,7 +1,14 @@
 "use client";
 
-import { useState } from "react";
-import { Search, AlertTriangle, Eye, MessageSquare, Flag } from "lucide-react";
+import { useState, useEffect } from "react";
+import {
+  Search,
+  AlertTriangle,
+  Eye,
+  MessageSquare,
+  Flag,
+  Loader2,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -14,6 +21,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { alertApi, StudentWithAlerts } from "@/service/alert.service";
 
 interface Student {
   id: string;
@@ -27,85 +35,133 @@ interface Student {
   screenShareStatus: "active" | "inactive";
 }
 
-const mockStudents: Student[] = [
-  {
-    id: "1",
-    name: "Alice Johnson",
-    studentId: "ST001",
-    room: "Room A",
-    riskLevel: "low",
-    alerts: 0,
-    lastActivity: "2 min ago",
-    webcamStatus: "active",
-    screenShareStatus: "active",
-  },
-  {
-    id: "2",
-    name: "Bob Smith",
-    studentId: "ST002",
-    room: "Room A",
-    riskLevel: "high",
-    alerts: 3,
-    lastActivity: "30 sec ago",
-    webcamStatus: "active",
-    screenShareStatus: "active",
-  },
-  {
-    id: "3",
-    name: "Carol Davis",
-    studentId: "ST003",
-    room: "Room A",
-    riskLevel: "medium",
-    alerts: 1,
-    lastActivity: "1 min ago",
-    webcamStatus: "active",
-    screenShareStatus: "inactive",
-  },
-  {
-    id: "4",
-    name: "David Wilson",
-    studentId: "ST004",
-    room: "Room A",
-    riskLevel: "low",
-    alerts: 0,
-    lastActivity: "45 sec ago",
-    webcamStatus: "active",
-    screenShareStatus: "active",
-  },
-  {
-    id: "5",
-    name: "Eva Brown",
-    studentId: "ST005",
-    room: "Room A",
-    riskLevel: "medium",
-    alerts: 2,
-    lastActivity: "1 min ago",
-    webcamStatus: "active",
-    screenShareStatus: "active",
-  },
-  {
-    id: "6",
-    name: "Frank Miller",
-    studentId: "ST006",
-    room: "Room A",
-    riskLevel: "low",
-    alerts: 0,
-    lastActivity: "3 min ago",
-    webcamStatus: "active",
-    screenShareStatus: "active",
-  },
-];
-
 interface LiveMonitoringProps {
+  examId: string;
   onStudentSelect: (studentId: string) => void;
 }
 
-export function LiveMonitoring({ onStudentSelect }: LiveMonitoringProps) {
+export function LiveMonitoring({
+  examId,
+  onStudentSelect,
+}: LiveMonitoringProps) {
   const [searchTerm, setSearchTerm] = useState("");
   const [riskFilter, setRiskFilter] = useState("all");
   const [roomFilter, setRoomFilter] = useState("all");
+  const [students, setStudents] = useState<Student[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [examInfo, setExamInfo] = useState<any>(null);
 
-  const filteredStudents = mockStudents.filter((student) => {
+  // Fetch students with alerts from API
+  useEffect(() => {
+    const fetchStudentsWithAlerts = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        console.log("Fetching students with alerts for exam:", examId);
+
+        const response = await alertApi.getAllAlertByExamId(examId);
+        console.log("API Response:", response);
+
+        if (response.success && response.data) {
+          console.log("Raw API data:", response.data);
+
+          const data = response.data;
+
+          // Set exam info
+          setExamInfo(data.exam);
+
+          // Transform API data to match the existing Student interface
+          const transformedStudents: Student[] = data.students.map(
+            (student: StudentWithAlerts) => {
+              // Calculate risk level based on alert count and types
+              const riskLevel = calculateRiskLevel(
+                student.alerts,
+                student.alertStatistics
+              );
+
+              // Get last activity from most recent alert
+              const lastActivity =
+                student.alerts.length > 0
+                  ? formatTimeAgo(new Date(student.alerts[0].alertAt))
+                  : "No activity";
+
+              return {
+                id: student._id,
+                name: student.name,
+                studentId: student._id, // Using _id as studentId for now
+                room: data.exam?.room || "Online",
+                riskLevel,
+                alerts: student.totalAlerts,
+                lastActivity,
+                webcamStatus: "active", // Default to active, could be enhanced with real data
+                screenShareStatus: student.hasSubmitted ? "active" : "inactive",
+              };
+            }
+          );
+
+          console.log("Transformed students:", transformedStudents);
+          setStudents(transformedStudents);
+        } else {
+          console.error("API Error:", response.error);
+          setError(
+            `API Error: ${response.error || "Failed to fetch students"}`
+          );
+        }
+      } catch (err) {
+        console.error("Fetch error:", err);
+        setError(
+          `Network Error: ${
+            err instanceof Error ? err.message : "Unknown error"
+          }`
+        );
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    if (examId) {
+      fetchStudentsWithAlerts();
+    }
+  }, [examId]);
+
+  // Helper function to calculate risk level
+  const calculateRiskLevel = (
+    alerts: any[],
+    statistics: any
+  ): "low" | "medium" | "high" => {
+    if (alerts.length === 0) return "low";
+
+    const totalAlerts = statistics.total;
+    const hasHighSeverityAlerts = alerts.some(
+      (alert: any) =>
+        alert.type === "Face Detection" || alert.type === "Phone Usage"
+    );
+
+    if (totalAlerts >= 5 || hasHighSeverityAlerts) return "high";
+    if (totalAlerts >= 2) return "medium";
+    return "low";
+  };
+
+  // Helper function to format time ago
+  const formatTimeAgo = (date: Date): string => {
+    const now = new Date();
+    const diffInMinutes = Math.floor(
+      (now.getTime() - date.getTime()) / (1000 * 60)
+    );
+
+    if (diffInMinutes < 1) return "Just now";
+    if (diffInMinutes < 60) return `${diffInMinutes} min ago`;
+
+    const diffInHours = Math.floor(diffInMinutes / 60);
+    if (diffInHours < 24)
+      return `${diffInHours} hour${diffInHours > 1 ? "s" : ""} ago`;
+
+    const diffInDays = Math.floor(diffInHours / 24);
+    return `${diffInDays} day${diffInDays > 1 ? "s" : ""} ago`;
+  };
+
+  const filteredStudents = students.filter((student) => {
     const matchesSearch =
       student.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       student.studentId.toLowerCase().includes(searchTerm.toLowerCase());
@@ -141,6 +197,38 @@ export function LiveMonitoring({ onStudentSelect }: LiveMonitoringProps) {
     }
   };
 
+  if (loading) {
+    return (
+      <div className="p-6 space-y-6">
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex items-center justify-center space-x-2">
+              <Loader2 className="w-6 h-6 animate-spin" />
+              <span>Loading students...</span>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="p-6 space-y-6">
+        <Card>
+          <CardContent className="p-6 text-center">
+            <AlertTriangle className="w-12 h-12 text-red-500 mx-auto mb-4" />
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">
+              Error Loading Students
+            </h3>
+            <p className="text-gray-600 mb-4">{error}</p>
+            <Button onClick={() => window.location.reload()}>Try Again</Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
   return (
     <div className="p-6 space-y-6">
       {/* Header with filters */}
@@ -148,9 +236,16 @@ export function LiveMonitoring({ onStudentSelect }: LiveMonitoringProps) {
         <CardHeader>
           <CardTitle className="flex items-center justify-between">
             <span>Live Student Monitoring</span>
-            <Badge variant="outline" className="bg-green-50 text-green-700">
-              {filteredStudents.length} Students Active
-            </Badge>
+            <div className="flex items-center space-x-2">
+              {examInfo && (
+                <Badge variant="outline" className="bg-blue-50 text-blue-700">
+                  {examInfo.name}
+                </Badge>
+              )}
+              <Badge variant="outline" className="bg-green-50 text-green-700">
+                {filteredStudents.length} Students Active
+              </Badge>
+            </div>
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -173,6 +268,7 @@ export function LiveMonitoring({ onStudentSelect }: LiveMonitoringProps) {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Rooms</SelectItem>
+                <SelectItem value="Online">Online</SelectItem>
                 <SelectItem value="Room A">Room A</SelectItem>
                 <SelectItem value="Room B">Room B</SelectItem>
                 <SelectItem value="Room C">Room C</SelectItem>
@@ -221,7 +317,7 @@ export function LiveMonitoring({ onStudentSelect }: LiveMonitoringProps) {
                     <p className="font-semibold text-sm text-exam-primary">
                       {student.name}
                     </p>
-                    <p className="text-xs text-gray-500">{student.studentId}</p>
+                    {/* <p className="text-xs text-gray-500">{student.studentId}</p> */}
                   </div>
                 </div>
                 {student.alerts > 0 && (
@@ -275,14 +371,6 @@ export function LiveMonitoring({ onStudentSelect }: LiveMonitoringProps) {
 
               {/* Action Buttons */}
               <div className="flex space-x-1">
-                {/* <Button
-                  size="sm"
-                  variant="outline"
-                  className="flex-1 text-xs bg-transparent"
-                >
-                  <Eye className="w-1 h-1 mr-0" />
-                  View
-                </Button> */}
                 <Button
                   size="sm"
                   variant="outline"
