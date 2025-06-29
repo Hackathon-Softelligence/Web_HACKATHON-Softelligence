@@ -1,24 +1,30 @@
-"use client"
+"use client";
 
-import { useState } from "react"
-import { Search, AlertTriangle, Eye, MessageSquare, Flag } from "lucide-react"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { useState } from "react";
+import { Search, AlertTriangle, Eye, MessageSquare, Flag } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 interface Student {
-  id: string
-  name: string
-  studentId: string
-  room: string
-  riskLevel: "low" | "medium" | "high"
-  alerts: number
-  lastActivity: string
-  webcamStatus: "active" | "inactive"
-  screenShareStatus: "active" | "inactive"
+  id: string;
+  name: string;
+  studentId: string;
+  room: string;
+  riskLevel: "low" | "medium" | "high";
+  alerts: number;
+  lastActivity: string;
+  webcamStatus: "active" | "inactive";
+  screenShareStatus: "active" | "inactive";
 }
 
 const mockStudents: Student[] = [
@@ -88,51 +94,52 @@ const mockStudents: Student[] = [
     webcamStatus: "active",
     screenShareStatus: "active",
   },
-]
+];
 
 interface LiveMonitoringProps {
-  onStudentSelect: (studentId: string) => void
+  onStudentSelect: (studentId: string) => void;
 }
 
 export function LiveMonitoring({ onStudentSelect }: LiveMonitoringProps) {
-  const [searchTerm, setSearchTerm] = useState("")
-  const [riskFilter, setRiskFilter] = useState("all")
-  const [roomFilter, setRoomFilter] = useState("all")
+  const [searchTerm, setSearchTerm] = useState("");
+  const [riskFilter, setRiskFilter] = useState("all");
+  const [roomFilter, setRoomFilter] = useState("all");
 
   const filteredStudents = mockStudents.filter((student) => {
     const matchesSearch =
       student.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      student.studentId.toLowerCase().includes(searchTerm.toLowerCase())
-    const matchesRisk = riskFilter === "all" || student.riskLevel === riskFilter
-    const matchesRoom = roomFilter === "all" || student.room === roomFilter
-    return matchesSearch && matchesRisk && matchesRoom
-  })
+      student.studentId.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesRisk =
+      riskFilter === "all" || student.riskLevel === riskFilter;
+    const matchesRoom = roomFilter === "all" || student.room === roomFilter;
+    return matchesSearch && matchesRisk && matchesRoom;
+  });
 
   const getRiskColor = (risk: string) => {
     switch (risk) {
       case "low":
-        return "bg-green-100 text-green-800 border-green-200"
+        return "bg-green-100 text-green-800 border-green-200";
       case "medium":
-        return "bg-yellow-100 text-yellow-800 border-yellow-200"
+        return "bg-yellow-100 text-yellow-800 border-yellow-200";
       case "high":
-        return "bg-red-100 text-red-800 border-red-200"
+        return "bg-red-100 text-red-800 border-red-200";
       default:
-        return "bg-gray-100 text-gray-800 border-gray-200"
+        return "bg-gray-100 text-gray-800 border-gray-200";
     }
-  }
+  };
 
   const getRiskBorderColor = (risk: string) => {
     switch (risk) {
       case "low":
-        return "border-green-300"
+        return "border-green-300";
       case "medium":
-        return "border-yellow-300"
+        return "border-yellow-300";
       case "high":
-        return "border-red-300"
+        return "border-red-300";
       default:
-        return "border-gray-300"
+        return "border-gray-300";
     }
-  }
+  };
 
   return (
     <div className="p-6 space-y-6">
@@ -192,7 +199,9 @@ export function LiveMonitoring({ onStudentSelect }: LiveMonitoringProps) {
         {filteredStudents.map((student) => (
           <Card
             key={student.id}
-            className={`cursor-pointer hover:shadow-lg transition-all duration-200 border-2 ${getRiskBorderColor(student.riskLevel)}`}
+            className={`cursor-pointer hover:shadow-lg transition-all duration-200 border-2 ${getRiskBorderColor(
+              student.riskLevel
+            )}`}
             onClick={() => onStudentSelect(student.id)}
           >
             <CardContent className="p-4">
@@ -209,7 +218,9 @@ export function LiveMonitoring({ onStudentSelect }: LiveMonitoringProps) {
                     </AvatarFallback>
                   </Avatar>
                   <div>
-                    <p className="font-semibold text-sm text-exam-primary">{student.name}</p>
+                    <p className="font-semibold text-sm text-exam-primary">
+                      {student.name}
+                    </p>
                     <p className="text-xs text-gray-500">{student.studentId}</p>
                   </div>
                 </div>
@@ -236,10 +247,18 @@ export function LiveMonitoring({ onStudentSelect }: LiveMonitoringProps) {
                 </div>
                 <div className="absolute top-2 right-2 flex space-x-1">
                   <div
-                    className={`w-2 h-2 rounded-full ${student.webcamStatus === "active" ? "bg-green-400" : "bg-red-400"}`}
+                    className={`w-2 h-2 rounded-full ${
+                      student.webcamStatus === "active"
+                        ? "bg-green-400"
+                        : "bg-red-400"
+                    }`}
                   ></div>
                   <div
-                    className={`w-2 h-2 rounded-full ${student.screenShareStatus === "active" ? "bg-green-400" : "bg-red-400"}`}
+                    className={`w-2 h-2 rounded-full ${
+                      student.screenShareStatus === "active"
+                        ? "bg-green-400"
+                        : "bg-red-400"
+                    }`}
                   ></div>
                 </div>
               </div>
@@ -249,21 +268,35 @@ export function LiveMonitoring({ onStudentSelect }: LiveMonitoringProps) {
                 <Badge className={`text-xs ${getRiskColor(student.riskLevel)}`}>
                   {student.riskLevel.toUpperCase()} RISK
                 </Badge>
-                <span className="text-xs text-gray-500">{student.lastActivity}</span>
+                <span className="text-xs text-gray-500">
+                  {student.lastActivity}
+                </span>
               </div>
 
               {/* Action Buttons */}
               <div className="flex space-x-1">
-                <Button size="sm" variant="outline" className="flex-1 text-xs bg-transparent">
-                  <Eye className="w-3 h-3 mr-1" />
+                {/* <Button
+                  size="sm"
+                  variant="outline"
+                  className="flex-1 text-xs bg-transparent"
+                >
+                  <Eye className="w-1 h-1 mr-0" />
                   View
-                </Button>
-                <Button size="sm" variant="outline" className="flex-1 text-xs bg-transparent">
-                  <MessageSquare className="w-3 h-3 mr-1" />
+                </Button> */}
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="flex-1 text-xs bg-transparent"
+                >
+                  <MessageSquare className="w-2 h-2 mr-0" />
                   Warn
                 </Button>
-                <Button size="sm" variant="outline" className="text-xs bg-transparent">
-                  <Flag className="w-3 h-3" />
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="text-xs bg-transparent"
+                >
+                  <Flag className="w-2 h-2" />
                 </Button>
               </div>
             </CardContent>
@@ -271,5 +304,5 @@ export function LiveMonitoring({ onStudentSelect }: LiveMonitoringProps) {
         ))}
       </div>
     </div>
-  )
+  );
 }

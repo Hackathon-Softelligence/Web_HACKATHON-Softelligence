@@ -1,8 +1,8 @@
-"use client"
+"use client";
 
-import type React from "react"
-import { Monitor, FileText, Settings, Bell, LogOut } from "lucide-react"
-import { Button } from "@/components/ui/button"
+import type React from "react";
+import { Monitor, FileText, Settings, Bell, LogOut } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import {
   Sidebar,
   SidebarContent,
@@ -14,13 +14,14 @@ import {
   SidebarProvider,
   SidebarTrigger,
   SidebarInset,
-} from "@/components/ui/sidebar"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+} from "@/components/ui/sidebar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { cn } from "@/lib/utils";
 
 interface DashboardLayoutProps {
-  children: React.ReactNode
-  currentView: string
-  onViewChange: (view: string) => void
+  children: React.ReactNode;
+  currentView: string;
+  onViewChange: (view: string) => void;
 }
 
 const navigation = [
@@ -28,20 +29,30 @@ const navigation = [
   { name: "Live Monitoring", icon: Monitor, id: "monitoring" },
   { name: "Reports & Evidence", icon: FileText, id: "reports" },
   { name: "Settings", icon: Settings, id: "settings" },
-]
+];
 
-export function DashboardLayout({ children, currentView, onViewChange }: DashboardLayoutProps) {
+export function DashboardLayout({
+  children,
+  currentView,
+  onViewChange,
+}: DashboardLayoutProps) {
   return (
     <SidebarProvider>
       <div className="flex h-screen bg-gray-50">
         <Sidebar className="border-r border-exam-gray">
           <SidebarHeader className="p-6 border-b border-exam-gray">
             <div className="flex items-center space-x-3">
-              <div className="w-8 h-8 bg-exam-primary rounded-lg flex items-center justify-center">
-                <Monitor className="w-5 h-5 text-white" />
+              <div className="w-15 h-15 bg-blue-900/80 rounded-lg flex items-center justify-center">
+                <img
+                  src="/exam-logo.jpeg"
+                  alt="Exam Logo"
+                  className="w-12 h-12 object-cover rounded"
+                />
               </div>
               <div>
-                <h1 className="text-lg font-semibold text-exam-primary">ProctorView</h1>
+                <h1 className="text-lg font-semibold text-blue-900">
+                  ProctorView
+                </h1>
                 <p className="text-sm text-gray-600">Exam Monitoring</p>
               </div>
             </div>
@@ -52,12 +63,41 @@ export function DashboardLayout({ children, currentView, onViewChange }: Dashboa
               {navigation.map((item) => (
                 <SidebarMenuItem key={item.id}>
                   <SidebarMenuButton
-                    onClick={() => onViewChange(item.id)}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      onViewChange(item.id);
+                    }}
                     isActive={currentView === item.id}
-                    className="w-full justify-start"
+                    className={cn(
+                      "w-full justify-start",
+                      "hover:bg-blue-100 hover:text-blue-800",
+                      "focus:bg-blue-100 focus:text-blue-800",
+                      currentView === item.id && ["!bg-blue-900 !text-white"]
+                    )}
+                    style={
+                      currentView === item.id
+                        ? {
+                            backgroundColor: "#1e3a8a",
+                            color: "white",
+                          }
+                        : undefined
+                    }
                   >
-                    <item.icon className="w-5 h-5" />
-                    <span>{item.name}</span>
+                    <item.icon
+                      className={cn(
+                        "w-5 h-5",
+                        currentView === item.id && "text-white"
+                      )}
+                    />
+                    <span
+                      className={cn(
+                        "font-medium",
+                        currentView === item.id && "text-white font-semibold"
+                      )}
+                    >
+                      {item.name}
+                    </span>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               ))}
@@ -71,11 +111,17 @@ export function DashboardLayout({ children, currentView, onViewChange }: Dashboa
                 <AvatarFallback>JP</AvatarFallback>
               </Avatar>
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-gray-900 truncate">John Proctor</p>
-                <p className="text-xs text-gray-500 truncate">Senior Proctor</p>
+                <p className="text-sm font-medium text-gray-900 truncate">
+                  Denny Dang
+                </p>
+                <p className="text-xs text-gray-500 truncate">FPT Lecturer</p>
               </div>
             </div>
-            <Button variant="ghost" size="sm" className="w-full justify-start text-gray-600">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="w-full justify-start text-gray-600 hover:bg-red-50 hover:text-red-600 transition-colors duration-200"
+            >
               <LogOut className="w-4 h-4 mr-2" />
               Sign out
             </Button>
@@ -88,16 +134,22 @@ export function DashboardLayout({ children, currentView, onViewChange }: Dashboa
               <div className="flex items-center space-x-4">
                 <SidebarTrigger />
                 <div>
-                  <h2 className="text-xl font-semibold text-exam-primary">
+                  <h2 className="text-xl font-semibold text-blue-900">
                     {navigation.find((nav) => nav.id === currentView)?.name}
                   </h2>
-                  <p className="text-sm text-gray-600">Real-time exam monitoring and management</p>
+                  <p className="text-sm text-gray-600">
+                    Real-time exam monitoring and management
+                  </p>
                 </div>
               </div>
               <div className="flex items-center space-x-4">
-                <Button variant="ghost" size="sm" className="relative">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="relative hover:bg-gray-100 transition-colors duration-200"
+                >
                   <Bell className="w-5 h-5" />
-                  <span className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full"></span>
+                  <span className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full animate-pulse"></span>
                 </Button>
                 <Avatar className="w-8 h-8">
                   <AvatarImage src="/placeholder.svg?height=32&width=32" />
@@ -111,5 +163,5 @@ export function DashboardLayout({ children, currentView, onViewChange }: Dashboa
         </SidebarInset>
       </div>
     </SidebarProvider>
-  )
+  );
 }
