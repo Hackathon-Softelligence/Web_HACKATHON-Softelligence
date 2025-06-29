@@ -6,8 +6,8 @@ import { ExamDashboard } from "./components/exam-dashboard";
 import { LiveMonitoring } from "./components/live-monitoring";
 import { StudentDetailModal } from "./components/student-detail-modal";
 import { AlertsPanel } from "./components/alerts-panel";
-import { ChatbotAssistant } from "./components/chatbot-assistant";
 import { ReportsEvidence } from "./components/reports-evidence";
+import { DialogflowWidget } from "./components/dialogflow-widget";
 
 export default function ExamProctoringDashboard() {
   const [currentView, setCurrentView] = useState("dashboard");
@@ -87,7 +87,8 @@ export default function ExamProctoringDashboard() {
         onClose={handleCloseStudentModal}
       />
 
-      <ChatbotAssistant />
+      {/* <ChatbotAssistant /> */}
+      <DialogflowWidget />
     </div>
   );
 }
