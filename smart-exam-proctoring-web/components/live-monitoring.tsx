@@ -8,6 +8,7 @@ import {
   MessageSquare,
   Flag,
   Loader2,
+  Plus,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -22,6 +23,10 @@ import {
 } from "@/components/ui/select";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { alertApi, StudentWithAlerts } from "@/service/alert.service";
+import {
+  firestoreService,
+  FirestoreStudent,
+} from "@/service/firestore.service";
 
 interface Student {
   id: string;
@@ -33,6 +38,7 @@ interface Student {
   lastActivity: string;
   webcamStatus: "active" | "inactive";
   screenShareStatus: "active" | "inactive";
+  source: "api" | "firestore";
 }
 
 interface LiveMonitoringProps {
@@ -51,6 +57,10 @@ export function LiveMonitoring({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [examInfo, setExamInfo] = useState<any>(null);
+  const [firestoreStudents, setFirestoreStudents] = useState<
+    FirestoreStudent[]
+  >([]);
+  const [apiStudents, setApiStudents] = useState<Student[]>([]);
 
   // Fetch students with alerts from API
   useEffect(() => {
@@ -96,12 +106,13 @@ export function LiveMonitoring({
                 lastActivity,
                 webcamStatus: "active", // Default to active, could be enhanced with real data
                 screenShareStatus: student.hasSubmitted ? "active" : "inactive",
+                source: "api" as const,
               };
             }
           );
 
           console.log("Transformed students:", transformedStudents);
-          setStudents(transformedStudents);
+          setApiStudents(transformedStudents);
         } else {
           console.error("API Error:", response.error);
           setError(
@@ -124,6 +135,69 @@ export function LiveMonitoring({
       fetchStudentsWithAlerts();
     }
   }, [examId]);
+
+  // Subscribe to Firestore students
+  useEffect(() => {
+    console.log(
+      "Setting up Firestore realtime subscription for live monitoring..."
+    );
+
+    const unsubscribe = firestoreService.subscribeToStudents(
+      (updatedFirestoreStudents) => {
+        console.log(
+          "Received Firestore students update:",
+          updatedFirestoreStudents
+        );
+        setFirestoreStudents(updatedFirestoreStudents);
+      }
+    );
+
+    return () => {
+      console.log("Cleaning up Firestore subscription in live monitoring");
+      unsubscribe();
+    };
+  }, []);
+
+  // Combine API students and Firestore students
+  useEffect(() => {
+    const combinedStudents: Student[] = [...apiStudents];
+
+    // Add Firestore students
+    firestoreStudents.forEach((firestoreStudent) => {
+      const existingStudent = combinedStudents.find(
+        (s) => s.id === firestoreStudent.id
+      );
+      if (!existingStudent) {
+        combinedStudents.push({
+          id: firestoreStudent.id,
+          name: firestoreStudent.name,
+          studentId: firestoreStudent.studentNo,
+          room: "Online",
+          riskLevel: calculateRiskLevelFromStatus(firestoreStudent.status),
+          alerts: 1, // Firestore students have alerts by default
+          lastActivity: formatTimeAgo(firestoreStudent.timestamp),
+          webcamStatus: "active",
+          screenShareStatus: "active",
+          source: "firestore" as const,
+        });
+      }
+    });
+
+    setStudents(combinedStudents);
+  }, [firestoreStudents, apiStudents]);
+
+  // Helper function to calculate risk level from Firestore status
+  const calculateRiskLevelFromStatus = (
+    status: string
+  ): "low" | "medium" | "high" => {
+    if (status.includes("lắc") || status.includes("nghiêng")) {
+      return "high";
+    }
+    if (status.includes("nhìn") || status.includes("quay")) {
+      return "medium";
+    }
+    return "low";
+  };
 
   // Helper function to calculate risk level
   const calculateRiskLevel = (
@@ -159,6 +233,28 @@ export function LiveMonitoring({
 
     const diffInDays = Math.floor(diffInHours / 24);
     return `${diffInDays} day${diffInDays > 1 ? "s" : ""} ago`;
+  };
+
+  const handleAddTestFirestoreStudent = async () => {
+    try {
+      const testStudent = {
+        imageUrl: "",
+        name: "Nguyễn Văn An",
+        status: "Đầu lắc qua lắc lại",
+        studentNo: "SE123456",
+        timestamp: new Date(),
+      };
+
+      const newId = await firestoreService.addStudent(testStudent);
+      console.log("Added test Firestore student with ID:", newId);
+    } catch (err) {
+      console.error("Error adding test Firestore student:", err);
+      setError(
+        `Error adding test student: ${
+          err instanceof Error ? err.message : "Unknown error"
+        }`
+      );
+    }
   };
 
   const filteredStudents = students.filter((student) => {
@@ -222,7 +318,14 @@ export function LiveMonitoring({
               Error Loading Students
             </h3>
             <p className="text-gray-600 mb-4">{error}</p>
-            <Button onClick={() => window.location.reload()}>Try Again</Button>
+            <div className="flex space-x-2 justify-center">
+              <Button onClick={() => window.location.reload()}>
+                Try Again
+              </Button>
+              <Button variant="outline" onClick={handleAddTestFirestoreStudent}>
+                Add Test Firestore Student
+              </Button>
+            </div>
           </CardContent>
         </Card>
       </div>
@@ -245,6 +348,14 @@ export function LiveMonitoring({
               <Badge variant="outline" className="bg-green-50 text-green-700">
                 {filteredStudents.length} Students Active
               </Badge>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleAddTestFirestoreStudent}
+              >
+                <Plus className="w-4 h-4 mr-2" />
+                Add Firestore Student
+              </Button>
             </div>
           </CardTitle>
         </CardHeader>
@@ -317,7 +428,15 @@ export function LiveMonitoring({
                     <p className="font-semibold text-sm text-exam-primary">
                       {student.name}
                     </p>
-                    {/* <p className="text-xs text-gray-500">{student.studentId}</p> */}
+                    <p className="text-xs text-gray-500">{student.studentId}</p>
+                    {student.source === "firestore" && (
+                      <Badge
+                        variant="outline"
+                        className="text-xs mt-1 bg-blue-50 text-blue-700"
+                      >
+                        Firestore
+                      </Badge>
+                    )}
                   </div>
                 </div>
                 {student.alerts > 0 && (

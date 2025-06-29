@@ -1,7 +1,15 @@
 "use client";
 
 import type React from "react";
-import { Monitor, FileText, Settings, Bell, LogOut } from "lucide-react";
+import {
+  Monitor,
+  FileText,
+  Settings,
+  Bell,
+  LogOut,
+  AlertTriangle,
+  Database,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Sidebar,
@@ -28,6 +36,7 @@ const navigation = [
   { name: "Exam Dashboard", icon: Monitor, id: "dashboard" },
   { name: "Live Monitoring", icon: Monitor, id: "monitoring" },
   { name: "Reports & Evidence", icon: FileText, id: "reports" },
+  { name: "Firebase Test", icon: Database, id: "firebase-test" },
   { name: "Settings", icon: Settings, id: "settings" },
 ];
 

@@ -7,7 +7,11 @@ import { LiveMonitoring } from "./components/live-monitoring";
 import { StudentDetailModal } from "./components/student-detail-modal";
 import { AlertsPanel } from "./components/alerts-panel";
 import { ReportsEvidence } from "./components/reports-evidence";
+<<<<<<< Updated upstream
 import { DialogflowWidget } from "./components/dialogflow-widget";
+=======
+import { FirebaseConnectionTest } from "./components/firebase-connection-test";
+>>>>>>> Stashed changes
 
 export default function ExamProctoringDashboard() {
   const [currentView, setCurrentView] = useState("dashboard");
@@ -59,7 +63,9 @@ export default function ExamProctoringDashboard() {
           </div>
         );
       case "reports":
-        return <ReportsEvidence />;
+        return <ReportsEvidence examId={selectedExamId || undefined} />;
+      case "firebase-test":
+        return <FirebaseConnectionTest />;
       case "settings":
         return (
           <div className="p-6">

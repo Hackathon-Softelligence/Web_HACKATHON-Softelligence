@@ -22,7 +22,7 @@ import {
 } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { alertApi, StudentAlert } from "@/service/alert.service";
+import { firestoreService, DetectionLog } from "@/service/firestore.service";
 
 interface Alert {
   id: string;
@@ -51,74 +51,163 @@ export function StudentDetailModal({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [studentInfo, setStudentInfo] = useState<any>(null);
+  const [firestoreLogs, setFirestoreLogs] = useState<DetectionLog[]>([]);
 
-  // Fetch student alerts when modal opens
+  // Fetch student data from Firestore when modal opens
   useEffect(() => {
-    const fetchStudentAlerts = async () => {
-      if (!studentId || !examId || !isOpen) return;
+    if (!isOpen) return;
 
+    const fetchStudentData = async () => {
       try {
         setLoading(true);
         setError(null);
-        console.log(
-          "Fetching alerts for student:",
-          studentId,
-          "in exam:",
-          examId
-        );
+        console.log("=== FIRESTORE DATA FETCH START ===");
+        console.log("Fetching Firestore data for document: SE123456");
 
-        const response = await alertApi.getAlertsByStudentId(examId, studentId);
-        console.log("Student alerts response:", response);
+        // Get logs from Firestore for document SE123456 (hardcoded)
+        const logs = await firestoreService.getLogsByStudentId("SE123456");
+        console.log("=== RAW FIRESTORE LOGS ===");
+        console.log("Total logs found:", logs.length);
+        console.log("All logs data:", JSON.stringify(logs, null, 2));
 
-        if (response.success && response.data) {
-          console.log("Raw student alerts:", response.data);
+        if (logs && logs.length > 0) {
+          console.log("=== PROCESSING FIRESTORE DATA ===");
 
-          // Transform API alerts to match the existing Alert interface
-          const transformedAlerts: Alert[] = response.data.map(
-            (alert: StudentAlert) => {
-              // Calculate severity based on alert type
-              const severity = calculateSeverity(alert.type);
-
-              // Format timestamp
-              const timestamp = formatTime(new Date(alert.alertAt));
-
-              return {
-                id: alert._id,
-                type: alert.type,
-                description: generateDescription(alert.type),
-                timestamp,
-                severity,
-              };
+          // Log each individual log
+          logs.forEach((log, index) => {
+            console.log(`--- Log ${index + 1} ---`);
+            console.log("ID:", log.id);
+            console.log("Name:", log.name);
+            console.log("Student No:", log.studentNo);
+            console.log("Status:", log.status);
+            console.log("Image URL:", log.imageUrl);
+            console.log("Timestamp type:", typeof log.timestamp);
+            console.log("Timestamp value:", log.timestamp);
+            console.log(
+              "Timestamp instanceof Date:",
+              log.timestamp instanceof Date
+            );
+            if (log.timestamp instanceof Date) {
+              console.log(
+                "Timestamp toISOString:",
+                log.timestamp.toISOString()
+              );
+              console.log(
+                "Timestamp toLocaleString:",
+                log.timestamp.toLocaleString("vi-VN")
+              );
             }
+            console.log("Raw log object:", log);
+          });
+
+          // Transform Firestore logs to Alert format
+          const transformedAlerts: Alert[] = logs.map((log) => {
+            return {
+              id: log.id,
+              type: log.status, // Use status as alert type
+              description: generateDescription(log.status),
+              timestamp: safeParseTimestamp(log.timestamp),
+              severity: calculateSeverity(log.status),
+            };
+          });
+
+          console.log("=== TRANSFORMED ALERTS ===");
+          console.log("Transformed alerts from Firestore:", transformedAlerts);
+          console.log(
+            "Alerts before sorting:",
+            transformedAlerts.map((a) => ({
+              id: a.id,
+              timestamp: a.timestamp,
+              timestampType: typeof a.timestamp,
+              parsedDate: new Date(a.timestamp),
+              isValid: !isNaN(new Date(a.timestamp).getTime()),
+            }))
           );
 
-          console.log("Transformed alerts:", transformedAlerts);
+          // Sort alerts by timestamp (newest first)
+          transformedAlerts.sort((a, b) => {
+            try {
+              const dateA = new Date(a.timestamp);
+              const dateB = new Date(b.timestamp);
+
+              // Check if dates are valid
+              if (isNaN(dateA.getTime()) || isNaN(dateB.getTime())) {
+                console.warn("Invalid timestamp found during sorting:", {
+                  a: a.timestamp,
+                  b: b.timestamp,
+                });
+                return 0; // Keep original order if invalid
+              }
+
+              return dateB.getTime() - dateA.getTime(); // Descending order (newest first)
+            } catch (error) {
+              console.error("Error sorting alerts by timestamp:", error);
+              return 0; // Keep original order if error
+            }
+          });
+
+          console.log(
+            "Alerts after sorting:",
+            transformedAlerts.map((a) => ({
+              id: a.id,
+              timestamp: a.timestamp,
+              parsedDate: new Date(a.timestamp),
+            }))
+          );
+
           setAlerts(transformedAlerts);
+          setFirestoreLogs(logs);
 
-          // Set student info from the first alert (if available)
-          if (response.data.length > 0) {
-            setStudentInfo({
-              id: studentId,
-              name: response.data[0].studentId.name,
-              studentId: response.data[0].studentId._id,
-              room: response.data[0].examId.name || "Online",
-              riskLevel: calculateRiskLevel(transformedAlerts),
-              alerts: transformedAlerts.length,
-              examStartTime: "14:00:00", // This could be enhanced with real exam data
-              currentTime: new Date().toLocaleTimeString(),
-            });
-          }
+          // Set student info from the first log
+          const firstLog = logs[0];
+          console.log("=== STUDENT INFO FROM FIRST LOG ===");
+          console.log("First log data:", firstLog);
+          console.log("Student name from log:", firstLog.name);
+          console.log("Student number from log:", firstLog.studentNo);
+
+          const studentInfoData = {
+            id: "SE123456", // Hardcoded to SE123456
+            name: firstLog.name,
+            studentId: firstLog.studentNo,
+            room: "Online", // Default room for Firestore students
+            riskLevel: calculateRiskLevel(transformedAlerts),
+            alerts: transformedAlerts.length,
+            examStartTime: "14:00:00",
+            currentTime: new Date().toLocaleTimeString(),
+          };
+
+          console.log("=== FINAL STUDENT INFO ===");
+          console.log("Setting student info from Firestore:", studentInfoData);
+          setStudentInfo(studentInfoData);
         } else {
-          console.error("API Error:", response.error);
-          setError(
-            `API Error: ${response.error || "Failed to fetch student alerts"}`
-          );
+          // No logs found for this student
+          console.log("=== NO LOGS FOUND ===");
+          console.log("No Firestore logs found for document: SE123456");
+
+          // Use fallback data
+          const fallbackStudentInfo = {
+            id: "SE123456", // Hardcoded to SE123456
+            name: "Student SE123456",
+            studentId: "SE123456",
+            room: "Online",
+            riskLevel: "low" as const,
+            alerts: 0,
+            examStartTime: "14:00:00",
+            currentTime: new Date().toLocaleTimeString(),
+          };
+
+          console.log("Using fallback student info:", fallbackStudentInfo);
+          setStudentInfo(fallbackStudentInfo);
           setAlerts([]);
+          setError(null);
         }
+
+        console.log("=== FIRESTORE DATA FETCH COMPLETE ===");
       } catch (err) {
-        console.error("Fetch error:", err);
+        console.error("=== FIRESTORE FETCH ERROR ===");
+        console.error("Firestore fetch error:", err);
         setError(
-          `Network Error: ${
+          `Firestore Error: ${
             err instanceof Error ? err.message : "Unknown error"
           }`
         );
@@ -128,20 +217,98 @@ export function StudentDetailModal({
       }
     };
 
-    fetchStudentAlerts();
-  }, [studentId, examId, isOpen]);
+    fetchStudentData();
+  }, [isOpen]); // Remove studentId dependency, only depend on isOpen
 
-  // Helper function to calculate severity based on alert type
-  const calculateSeverity = (type: string): "low" | "medium" | "high" => {
-    const highSeverityTypes = [
-      "Face Detection",
-      "Phone Usage",
-      "Multiple Faces",
-    ];
-    const mediumSeverityTypes = ["Looking Away", "Voice Detected"];
+  // Helper function to format timestamp nicely
+  const formatTimestamp = (timestamp: string): string => {
+    try {
+      const date = new Date(timestamp);
+      if (isNaN(date.getTime())) {
+        return "Invalid date";
+      }
 
-    if (highSeverityTypes.includes(type)) return "high";
-    if (mediumSeverityTypes.includes(type)) return "medium";
+      return date.toLocaleString("vi-VN", {
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit",
+        hour12: false,
+      });
+    } catch (error) {
+      console.error("Error formatting timestamp:", error);
+      return "Invalid date";
+    }
+  };
+
+  // Helper function to safely parse timestamp
+  const safeParseTimestamp = (timestamp: any): string => {
+    try {
+      console.log("Parsing timestamp:", timestamp, "Type:", typeof timestamp);
+
+      if (timestamp instanceof Date) {
+        console.log("Timestamp is Date object:", timestamp);
+        return timestamp.toISOString();
+      } else if (typeof timestamp === "string") {
+        console.log("Timestamp is string:", timestamp);
+        const parsed = new Date(timestamp);
+        if (!isNaN(parsed.getTime())) {
+          console.log("Successfully parsed string timestamp:", parsed);
+          return parsed.toISOString();
+        } else {
+          console.warn("Invalid string timestamp:", timestamp);
+        }
+      } else if (
+        timestamp &&
+        typeof timestamp === "object" &&
+        "toDate" in timestamp
+      ) {
+        // Firestore Timestamp object
+        console.log("Timestamp is Firestore Timestamp object:", timestamp);
+        const date = (timestamp as any).toDate();
+        if (date instanceof Date) {
+          console.log("Successfully converted Firestore timestamp:", date);
+          return date.toISOString();
+        } else {
+          console.warn("Invalid Firestore timestamp conversion:", date);
+        }
+      } else if (
+        timestamp &&
+        typeof timestamp === "object" &&
+        "seconds" in timestamp
+      ) {
+        // Firestore Timestamp with seconds/nanoseconds
+        console.log("Timestamp has seconds property:", timestamp);
+        const date = new Date(timestamp.seconds * 1000);
+        if (!isNaN(date.getTime())) {
+          console.log("Successfully converted seconds timestamp:", date);
+          return date.toISOString();
+        } else {
+          console.warn("Invalid seconds timestamp:", timestamp);
+        }
+      } else {
+        console.warn("Unknown timestamp format:", timestamp);
+      }
+
+      // Fallback to current time
+      console.warn("Using fallback timestamp for:", timestamp);
+      return new Date().toISOString();
+    } catch (error) {
+      console.error("Error parsing timestamp:", error, "Value:", timestamp);
+      return new Date().toISOString();
+    }
+  };
+
+  // Helper function to calculate severity based on status
+  const calculateSeverity = (status: string): "low" | "medium" | "high" => {
+    if (status.includes("lắc") || status.includes("nghiêng")) {
+      return "high";
+    }
+    if (status.includes("nhìn") || status.includes("quay")) {
+      return "medium";
+    }
     return "low";
   };
 
@@ -161,19 +328,17 @@ export function StudentDetailModal({
     return "low";
   };
 
-  // Helper function to generate description based on alert type
-  const generateDescription = (type: string): string => {
+  // Helper function to generate description based on status
+  const generateDescription = (status: string): string => {
     const descriptions: Record<string, string> = {
-      "Face Detection": "Student's face not detected in camera view",
-      "Phone Usage": "Mobile device detected on desk",
-      "Multiple Faces": "Additional person detected in camera view",
-      "Looking Away": "Student looked away from screen",
-      "Voice Detected": "Voice activity detected during exam",
-      "Tab Switch": "Student switched to different browser tab",
-      "Suspicious Behavior": "Unusual behavior pattern detected",
+      "Đầu lắc qua lắc lại": "Student's head is shaking repeatedly",
+      "Nhìn sang trái": "Student is looking to the left",
+      "Nhìn sang phải": "Student is looking to the right",
+      "Quay đầu": "Student is turning their head",
+      "Nghiêng đầu": "Student is tilting their head",
     };
 
-    return descriptions[type] || `${type} alert detected`;
+    return descriptions[status] || `${status} detected`;
   };
 
   // Helper function to format time
@@ -188,11 +353,11 @@ export function StudentDetailModal({
 
   if (!studentId) return null;
 
-  // Fallback student info if API data is not available
+  // Fallback student info if Firestore data is not available
   const student = studentInfo || {
-    id: studentId,
+    id: "SE123456", // Always use SE123456
     name: "Loading...",
-    studentId: studentId,
+    studentId: "SE123456", // Always use SE123456
     room: "Loading...",
     riskLevel: "low" as const,
     alerts: 0,
@@ -279,11 +444,23 @@ export function StudentDetailModal({
                 <Card>
                   <CardContent className="p-4">
                     <div className="aspect-video bg-gray-900 rounded-lg flex items-center justify-center">
-                      <img
-                        src="/placeholder.svg?height=360&width=640"
-                        alt="Student webcam feed"
-                        className="w-full h-full object-cover rounded-lg"
-                      />
+                      {firestoreLogs.length > 0 && firestoreLogs[0].imageUrl ? (
+                        <img
+                          src={firestoreLogs[0].imageUrl}
+                          alt="Student webcam feed"
+                          className="w-full h-full object-cover rounded-lg"
+                          onError={(e) => {
+                            e.currentTarget.src =
+                              "/placeholder.svg?height=360&width=640";
+                          }}
+                        />
+                      ) : (
+                        <img
+                          src="/placeholder.svg?height=360&width=640"
+                          alt="Student webcam feed"
+                          className="w-full h-full object-cover rounded-lg"
+                        />
+                      )}
                     </div>
                     <div className="mt-2 flex items-center justify-between text-sm text-gray-600">
                       <span>Webcam Feed - Live</span>
@@ -367,7 +544,9 @@ export function StudentDetailModal({
             {/* Recent Alerts */}
             <Card>
               <CardHeader>
-                <CardTitle className="text-sm">Recent Alerts</CardTitle>
+                <CardTitle className="text-sm">
+                  Recent Alerts (Firestore)
+                </CardTitle>
               </CardHeader>
               <CardContent className="space-y-3 max-h-48 overflow-y-auto">
                 {loading ? (
@@ -413,12 +592,29 @@ export function StudentDetailModal({
                           {alert.type}
                         </span>
                         <span className="text-xs text-gray-500">
-                          {alert.timestamp}
+                          {formatTimestamp(alert.timestamp)}
                         </span>
                       </div>
                       <p className="text-xs text-gray-600">
                         {alert.description}
                       </p>
+                      {/* Show image if available */}
+                      {firestoreLogs.find((log) => log.id === alert.id)
+                        ?.imageUrl && (
+                        <div className="mt-2">
+                          <img
+                            src={
+                              firestoreLogs.find((log) => log.id === alert.id)
+                                ?.imageUrl
+                            }
+                            alt="Detection evidence"
+                            className="w-16 h-12 object-cover rounded border"
+                            onError={(e) => {
+                              e.currentTarget.style.display = "none";
+                            }}
+                          />
+                        </div>
+                      )}
                     </div>
                   ))
                 )}
@@ -447,6 +643,59 @@ export function StudentDetailModal({
                 </Button>
               </CardContent>
             </Card>
+
+            {/* Debug Info - Remove in production */}
+            {process.env.NODE_ENV === "development" && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-sm">
+                    Debug Info (Firestore - SE123456)
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-2 text-xs">
+                  <div>
+                    <strong>Document ID:</strong> SE123456 (hardcoded)
+                  </div>
+                  <div>
+                    <strong>Modal Student ID:</strong> {studentId || "None"}
+                  </div>
+                  <div>
+                    <strong>Exam ID:</strong> {examId || "None"}
+                  </div>
+                  <div>
+                    <strong>Firestore Logs Count:</strong>{" "}
+                    {firestoreLogs.length}
+                  </div>
+                  <div>
+                    <strong>Alerts Count:</strong> {alerts.length}
+                  </div>
+                  <div>
+                    <strong>Loading:</strong> {loading ? "Yes" : "No"}
+                  </div>
+                  <div>
+                    <strong>Error:</strong> {error || "None"}
+                  </div>
+                  <div>
+                    <strong>Latest Image URL:</strong>{" "}
+                    {firestoreLogs[0]?.imageUrl || "None"}
+                  </div>
+                  <div>
+                    <strong>Student Info:</strong>
+                    <pre className="mt-1 text-xs bg-gray-100 p-1 rounded">
+                      {JSON.stringify(studentInfo, null, 2)}
+                    </pre>
+                  </div>
+                  <div>
+                    <strong>Latest Firestore Log:</strong>
+                    <pre className="mt-1 text-xs bg-gray-100 p-1 rounded max-h-20 overflow-y-auto">
+                      {firestoreLogs.length > 0
+                        ? JSON.stringify(firestoreLogs[0], null, 2)
+                        : "No logs"}
+                    </pre>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
           </div>
         </div>
       </DialogContent>

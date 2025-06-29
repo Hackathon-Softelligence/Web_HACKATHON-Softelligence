@@ -427,6 +427,105 @@ class AlertService {
   async getAlertHistory(alertId: string): Promise<ApiResponse<any[]>> {
     return apiClient.get<any[]>(`${this.baseEndpoint}/${alertId}/history`);
   }
+
+  // Get all evidence from alerts for reports
+  async getAllEvidenceFromAlerts(
+    examId: string,
+    params?: {
+      page?: number;
+      limit?: number;
+      status?: string;
+      severity?: string;
+      type?: string;
+      startDate?: string;
+      endDate?: string;
+      sortBy?: string;
+      sortOrder?: "asc" | "desc";
+    }
+  ): Promise<ApiResponse<any[]>> {
+    const response = await this.getAllAlertByExamId(examId, params);
+
+    if (response.success && response.data) {
+      // Extract all evidence from all students' alerts
+      const allEvidence: any[] = [];
+
+      response.data.students.forEach((student: StudentWithAlerts) => {
+        student.alerts.forEach((alert: StudentAlert) => {
+          // Only include alerts that have evidence (recording)
+          if (alert.recording) {
+            allEvidence.push({
+              id: alert._id,
+              type:
+                alert.type.includes("video") ||
+                alert.recording.includes("video")
+                  ? "video"
+                  : "image",
+              studentName: student.name,
+              studentId: student._id,
+              alertType: alert.type,
+              timestamp: alert.alertAt,
+              severity: this.calculateSeverityFromType(alert.type),
+              status: this.getStatusFromAlert(alert),
+              description: this.generateDescriptionFromType(alert.type),
+              thumbnailUrl: alert.recording,
+              fullUrl: alert.recording,
+              notes: "",
+              studentInfo: student,
+              alertInfo: alert,
+            });
+          }
+        });
+      });
+
+      return {
+        success: true,
+        data: allEvidence,
+      };
+    }
+
+    return {
+      success: false,
+      error: response.error || "Failed to fetch evidence",
+    };
+  }
+
+  // Helper function to calculate severity from alert type
+  private calculateSeverityFromType(type: string): "low" | "medium" | "high" {
+    const highSeverityTypes = [
+      "Face Detection",
+      "Phone Usage",
+      "Multiple Faces",
+    ];
+    const mediumSeverityTypes = ["Looking Away", "Voice Detected"];
+
+    if (highSeverityTypes.includes(type)) return "high";
+    if (mediumSeverityTypes.includes(type)) return "medium";
+    return "low";
+  }
+
+  // Helper function to get status from alert
+  private getStatusFromAlert(
+    alert: StudentAlert
+  ): "pending" | "reviewed" | "confirmed" {
+    // This could be enhanced with real status from alert data
+    // For now, default to pending
+    return "pending";
+  }
+
+  // Helper function to generate description from alert type
+  private generateDescriptionFromType(type: string): string {
+    const descriptions: Record<string, string> = {
+      "Face Detection": "Student's face not detected in camera view",
+      "Phone Usage": "Mobile device detected on desk",
+      "Multiple Faces": "Additional person detected in camera view",
+      "Looking Away": "Student looked away from screen",
+      "Voice Detected": "Voice activity detected during exam",
+      "Tab Switch": "Student switched to different browser tab",
+      "Suspicious Behavior": "Unusual behavior pattern detected",
+    };
+
+    return descriptions[type] || `${type} alert detected`;
+  }
 }
 
 // Create and export default instance

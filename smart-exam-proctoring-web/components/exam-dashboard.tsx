@@ -23,6 +23,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { examApi } from "@/service/exam.service";
+import { FirebaseTest } from "@/components/firebase-test";
 
 // Interface cho dữ liệu API thực tế
 interface ExamData {
@@ -431,6 +432,16 @@ export function ExamDashboard({ onViewMonitoring }: ExamDashboardProps) {
               </div>
             ))}
           </div>
+        </CardContent>
+      </Card>
+
+      {/* Firebase Test Component */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Firebase Connection Test</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <FirebaseTest />
         </CardContent>
       </Card>
     </div>
