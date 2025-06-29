@@ -1,7 +1,7 @@
 "use client"
 
 import type React from "react"
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef, useCallback } from "react"
 import { useNavigate } from "react-router-dom"
 import { CheatingDetectionResult } from "../models/CheatingDetectionResult"
 import CameraFeed from "@/components/ui/camera-feed"
@@ -22,6 +22,7 @@ interface Alert {
 
 const ExamScreen: React.FC = () => {
   const navigate = useNavigate()
+  const lastDetectionTimeRef = useRef(0);
   const [currentQuestion, setCurrentQuestion] = useState(0)
   const [timeLeft, setTimeLeft] = useState(7200) // 2 hours in seconds
   const [answers, setAnswers] = useState<Record<number, string>>({})
@@ -30,6 +31,7 @@ const ExamScreen: React.FC = () => {
   const [cheatingDetections, setCheatingDetections] = useState<CheatingDetectionResult[]>([])
   const [suspiciousActivity, setSuspiciousActivity] = useState(0)
   const [lastDetectionTime, setLastDetectionTime] = useState(0)
+  const [isCurrentlyViolating, setIsCurrentlyViolating] = useState(false);
   
   const questions: Question[] = [
     {
@@ -131,54 +133,48 @@ const ExamScreen: React.FC = () => {
   // ===============================
   //         CHEAT DETECTION
   // ===============================
-  const handleCheatingDetected = (detection: CheatingDetectionResult) => {
+  const handleCheatingDetected = useCallback((detection: CheatingDetectionResult) => {
     const now = Date.now();
     
-    // Only process detections every 500ms to avoid spam
-    if (now - lastDetectionTime < 500) return;
-    setLastDetectionTime(now);
-    
-    // Add to detection history
-    setCheatingDetections(prev => [...prev.slice(-10), detection]); // Keep last 10 detections
-    
-    // Check for suspicious activity
-    if (detection.isLookingAway || detection.multipleFaces || detection.noFaceDetected) {
-      setSuspiciousActivity(prev => prev + 1);
-      
-      let alertMessage = "";
-      if (detection.noFaceDetected) {
-        alertMessage = "Please ensure your face is visible to the camera";
-      } else if (detection.multipleFaces) {
-        alertMessage = "Multiple faces detected - only the exam taker should be visible";
-      } else if (detection.lookingDown) {
-        alertMessage = "Please keep your eyes on the screen";
-      } else if (detection.lookingLeft || detection.lookingRight) {
-        alertMessage = "Please look directly at the screen";
-      } else {
-        alertMessage = "Suspicious activity detected";
-      }
-      
-      // const newAlert: Alert = {
-      //   id: Date.now(),
-      //   message: alertMessage,
-      //   type: detection.multipleFaces ? "error" : "warning",
-      // };
-      
-      // setAlerts(prev => [...prev, newAlert]);
-      // setAlertCount(prev => prev + 1);
-      
-      // // Auto-dismiss alert after 3 seconds
-      // setTimeout(() => {
-      //   setAlerts(prev => prev.filter(alert => alert.id !== newAlert.id));
-      // }, 3000);
-      
-      // Force submit if too many violations
-      if (suspiciousActivity >= 8) {
-        alert("Too many violations detected. Exam will be submitted automatically.");
-        navigate("/submit");
-      }
+    // Check against the .current property of the ref.
+    // This value is always up-to-date, even between re-renders.
+    if (now - lastDetectionTimeRef.current < 3500) {
+        return;
     }
-  };
+    
+    // 2. Update the .current property directly. This does not cause a re-render.
+    lastDetectionTimeRef.current = now;
+    
+    // The rest of your logic can now proceed, correctly throttled.
+    setCheatingDetections(prev => [...prev.slice(-10), detection]);
+    
+    const isViolation = detection.isLookingAway || detection.multipleFaces || detection.noFaceDetected || detection.hasCheatingObjects;
+
+    if (isViolation) {
+        if (!isCurrentlyViolating) {
+            setIsCurrentlyViolating(true);
+    
+            // ... (your alertMessage logic is fine)
+            
+            setSuspiciousActivity(currentCount => {
+                const newCount = currentCount + 1;
+                console.log(`Violation #${newCount} recorded.`);
+
+                if (newCount >= 10) {
+                    alert("Too many violations detected. Exam will be submitted automatically.");
+                    navigate("/submit");
+                }
+                
+                return newCount;
+            });
+        }
+    } else {
+        if (isCurrentlyViolating) {
+            setIsCurrentlyViolating(false);
+            console.log("Violation period ended. System reset.");
+        }
+    }
+}, [isCurrentlyViolating, navigate]); // Add dependencies for useCallback
 
   return (
     <div style={{ minHeight: "100vh", backgroundColor: "var(--white)" }}>

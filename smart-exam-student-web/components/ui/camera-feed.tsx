@@ -102,8 +102,12 @@ const CameraFeed: React.FC<CameraFeedProps> = ({ onCheatingDetected, isActive })
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     
     ctx.font = '16px Arial';
-    ctx.fillStyle = detection.isLookingAway || detection.multipleFaces || detection.noFaceDetected 
-      ? '#ff4444' : '#44ff44';
+    
+    // Check for any cheating behavior (face or object detection)
+    const hasCheatingBehavior = detection.isLookingAway || detection.multipleFaces || 
+                               detection.noFaceDetected || detection.hasCheatingObjects;
+    
+    ctx.fillStyle = hasCheatingBehavior ? '#ff4444' : '#44ff44';
     
     let statusText = 'Normal';
     if (detection.noFaceDetected) statusText = 'No Face Detected';
@@ -112,9 +116,37 @@ const CameraFeed: React.FC<CameraFeedProps> = ({ onCheatingDetected, isActive })
     else if (detection.lookingLeft) statusText = 'Looking Left';
     else if (detection.lookingRight) statusText = 'Looking Right';
     else if (detection.isLookingAway) statusText = 'Looking Away';
+    else if (detection.hasCheatingObjects) statusText = 'Cheating Objects Detected';
     
     ctx.fillText(statusText, 10, 30);
     ctx.fillText(`Confidence: ${(detection.confidence * 100).toFixed(1)}%`, 10, 55);
+    
+    // Display detected objects
+    if (detection.detectedObjects.length > 0) {
+      ctx.fillStyle = '#ff4444';
+      ctx.font = '14px Arial';
+      let yOffset = 80;
+      
+      detection.detectedObjects.forEach((obj, index) => {
+        const objectText = `${obj.name} (${(obj.confidence * 100).toFixed(1)}%)`;
+        ctx.fillText(objectText, 10, yOffset + (index * 20));
+        
+        // Draw bounding box for detected objects
+        if (obj.boundingBox) {
+          const scaleX = canvas.width / video.videoWidth;
+          const scaleY = canvas.height / video.videoHeight;
+          
+          ctx.strokeStyle = '#ff4444';
+          ctx.lineWidth = 2;
+          ctx.strokeRect(
+            obj.boundingBox.originX * scaleX,
+            obj.boundingBox.originY * scaleY,
+            obj.boundingBox.width * scaleX,
+            obj.boundingBox.height * scaleY
+          );
+        }
+      });
+    }
   };
 
   const cleanup = () => {
