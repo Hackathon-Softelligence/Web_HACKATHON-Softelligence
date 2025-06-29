@@ -123,6 +123,7 @@ const CameraPreview: React.FC<CameraPreviewProps> = ({ onVerificationComplete, i
     if (detection.lookingLeft) return 'Looking Left';
     if (detection.lookingRight) return 'Looking Right';
     if (detection.isLookingAway) return 'Looking Away';
+    if (detection.hasCheatingObjects) return 'Cheating Objects Detected';
     return 'Normal';
   }
   
@@ -143,6 +144,33 @@ const CameraPreview: React.FC<CameraPreviewProps> = ({ onVerificationComplete, i
     ctx.fillStyle = statusText !== 'Normal' ? '#ff4444' : '#44ff44';
     
     ctx.fillText(statusText, 10, 25);
+    
+    // Display detected objects
+    if (detection.detectedObjects.length > 0) {
+      ctx.fillStyle = '#ff4444';
+      ctx.font = '14px Arial';
+      let yOffset = 45;
+      
+      detection.detectedObjects.forEach((obj, index) => {
+        const objectText = `${obj.name} (${(obj.confidence * 100).toFixed(1)}%)`;
+        ctx.fillText(objectText, 10, yOffset + (index * 18));
+        
+        // Draw bounding box for detected objects
+        if (obj.boundingBox) {
+          const scaleX = canvas.width / video.videoWidth;
+          const scaleY = canvas.height / video.videoHeight;
+          
+          ctx.strokeStyle = '#ff4444';
+          ctx.lineWidth = 2;
+          ctx.strokeRect(
+            obj.boundingBox.originX * scaleX,
+            obj.boundingBox.originY * scaleY,
+            obj.boundingBox.width * scaleX,
+            obj.boundingBox.height * scaleY
+          );
+        }
+      });
+    }
   };
 
   const cleanup = () => {

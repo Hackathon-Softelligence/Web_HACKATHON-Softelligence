@@ -141,8 +141,8 @@ const ExamScreen: React.FC = () => {
     // Add to detection history
     setCheatingDetections(prev => [...prev.slice(-10), detection]); // Keep last 10 detections
     
-    // Check for suspicious activity
-    if (detection.isLookingAway || detection.multipleFaces || detection.noFaceDetected) {
+    // Check for suspicious activity (face detection + object detection)
+    if (detection.isLookingAway || detection.multipleFaces || detection.noFaceDetected || detection.hasCheatingObjects) {
       setSuspiciousActivity(prev => prev + 1);
       
       let alertMessage = "";
@@ -150,6 +150,9 @@ const ExamScreen: React.FC = () => {
         alertMessage = "Please ensure your face is visible to the camera";
       } else if (detection.multipleFaces) {
         alertMessage = "Multiple faces detected - only the exam taker should be visible";
+      } else if (detection.hasCheatingObjects) {
+        const objectNames = detection.detectedObjects.map(obj => obj.name).join(", ");
+        alertMessage = `Cheating objects detected: ${objectNames}. Please remove them from view.`;
       } else if (detection.lookingDown) {
         alertMessage = "Please keep your eyes on the screen";
       } else if (detection.lookingLeft || detection.lookingRight) {
@@ -161,7 +164,7 @@ const ExamScreen: React.FC = () => {
       // const newAlert: Alert = {
       //   id: Date.now(),
       //   message: alertMessage,
-      //   type: detection.multipleFaces ? "error" : "warning",
+      //   type: detection.multipleFaces || detection.hasCheatingObjects ? "error" : "warning",
       // };
       
       // setAlerts(prev => [...prev, newAlert]);
