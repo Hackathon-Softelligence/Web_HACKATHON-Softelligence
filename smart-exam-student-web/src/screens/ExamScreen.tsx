@@ -4,7 +4,8 @@ import type React from "react"
 import { useState, useEffect, useRef, useCallback } from "react"
 import { useNavigate } from "react-router-dom"
 import { CheatingDetectionResult } from "../models/CheatingDetectionResult"
-import CameraFeed from "@/components/ui/camera-feed"
+import CameraFeed, { CameraFeedRef } from "@/components/ui/camera-feed" // Import CameraFeedRef
+import { logViolation } from "../services/LogViolation"
 
 interface Question {
   id: number
@@ -23,6 +24,9 @@ interface Alert {
 const ExamScreen: React.FC = () => {
   const navigate = useNavigate()
   const lastDetectionTimeRef = useRef(0);
+
+  const cameraFeedRef = useRef<CameraFeedRef>(null); // Ref for CameraFeed component
+
   const [currentQuestion, setCurrentQuestion] = useState(0)
   const [timeLeft, setTimeLeft] = useState(7200) // 2 hours in seconds
   const [answers, setAnswers] = useState<Record<number, string>>({})
@@ -32,7 +36,7 @@ const ExamScreen: React.FC = () => {
   const [suspiciousActivity, setSuspiciousActivity] = useState(0)
   const [lastDetectionTime, setLastDetectionTime] = useState(0)
   const [isCurrentlyViolating, setIsCurrentlyViolating] = useState(false);
-  
+
   const questions: Question[] = [
     {
       id: 1,
@@ -72,15 +76,15 @@ const ExamScreen: React.FC = () => {
   // Simulate random alerts
   useEffect(() => {
     const alertTimer = setInterval(() => {
-    // Request camera permissions
-    navigator.mediaDevices.getUserMedia({ video: true })
-      .then(() => {
-        console.log('Camera permission granted');
-      })
-      .catch((error) => {
-        console.error('Camera permission denied:', error);
-        alert('Camera access is required for exam monitoring. Please allow camera access and refresh the page.');
-      });
+      // Request camera permissions (this part is fine where it is)
+      navigator.mediaDevices.getUserMedia({ video: true })
+        .then(() => {
+          console.log('Camera permission granted');
+        })
+        .catch((error) => {
+          console.error('Camera permission denied:', error);
+          alert('Camera access is required for exam monitoring. Please allow camera access and refresh the page.');
+        });
 
       if (Math.random() < 0.3) {
         // 30% chance every 10 seconds
@@ -131,50 +135,50 @@ const ExamScreen: React.FC = () => {
   }
 
   // ===============================
-  //         CHEAT DETECTION
+  //        CHEAT DETECTION
   // ===============================
   const handleCheatingDetected = useCallback((detection: CheatingDetectionResult) => {
     const now = Date.now();
-    
-    // Check against the .current property of the ref.
-    // This value is always up-to-date, even between re-renders.
+
     if (now - lastDetectionTimeRef.current < 3500) {
-        return;
+      return;
     }
-    
-    // 2. Update the .current property directly. This does not cause a re-render.
+
     lastDetectionTimeRef.current = now;
-    
-    // The rest of your logic can now proceed, correctly throttled.
+
     setCheatingDetections(prev => [...prev.slice(-10), detection]);
-    
+
     const isViolation = detection.isLookingAway || detection.multipleFaces || detection.noFaceDetected || detection.hasCheatingObjects;
 
     if (isViolation) {
-        if (!isCurrentlyViolating) {
-            setIsCurrentlyViolating(true);
-    
-            // ... (your alertMessage logic is fine)
-            
-            setSuspiciousActivity(currentCount => {
-                const newCount = currentCount + 1;
-                console.log(`Violation #${newCount} recorded.`);
+      if (!isCurrentlyViolating) {
+        setIsCurrentlyViolating(true);
 
-                if (newCount >= 10) {
-                    alert("Too many violations detected. Exam will be submitted automatically.");
-                    navigate("/submit");
-                }
-                
-                return newCount;
-            });
-        }
+        // Take a snapshot using the ref to CameraFeed
+        const imageDataUrl = cameraFeedRef.current?.takeSnapshot()!;
+
+        // Call the service to handle upload and logging
+        logViolation(detection, imageDataUrl);
+
+        setSuspiciousActivity(currentCount => {
+          const newCount = currentCount + 1;
+          console.log(`Violation #${newCount} recorded.`);
+
+          if (newCount >= 10) {
+            alert("Too many violations detected. Exam will be submitted automatically.");
+            navigate("/submit");
+          }
+
+          return newCount;
+        });
+      }
     } else {
-        if (isCurrentlyViolating) {
-            setIsCurrentlyViolating(false);
-            console.log("Violation period ended. System reset.");
-        }
+      if (isCurrentlyViolating) {
+        setIsCurrentlyViolating(false);
+        console.log("Violation period ended. System reset.");
+      }
     }
-}, [isCurrentlyViolating, navigate]); // Add dependencies for useCallback
+  }, [isCurrentlyViolating, navigate]); // Add dependencies for useCallback
 
   return (
     <div style={{ minHeight: "100vh", backgroundColor: "var(--white)" }}>
@@ -280,7 +284,9 @@ const ExamScreen: React.FC = () => {
         right: '20px',
         zIndex: 1000
       }}>
-        <CameraFeed 
+        {/* Pass the ref to CameraFeed */}
+        <CameraFeed
+          ref={cameraFeedRef}
           onCheatingDetected={handleCheatingDetected}
           isActive={true}
         />
@@ -336,4 +342,4 @@ const ExamScreen: React.FC = () => {
   )
 }
 
-export default ExamScreen
+export default ExamScreen;

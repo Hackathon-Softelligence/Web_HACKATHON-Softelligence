@@ -194,7 +194,7 @@ export class FaceDetectionService {
 
         // --- Symmetrical and realistic thresholds ---
         const HORIZONTAL_THRESHOLD = 0.2;
-        const LOOKING_DOWN_THRESHOLD = 0.75;
+        const LOOKING_DOWN_THRESHOLD = 0.6;
         const LOOKING_UP_THRESHOLD = -0.1;
 
         const horizontalRatio = (nose.x - (leftEye.x + rightEye.x) / 2) / eyeDistance;
