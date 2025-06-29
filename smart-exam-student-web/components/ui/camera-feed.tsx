@@ -130,14 +130,14 @@ const CameraFeed = React.forwardRef<CameraFeedRef, CameraFeedProps>(
 
       ctx.fillStyle = hasCheatingBehavior ? '#ff4444' : '#44ff44';
 
-      let statusText = 'Normal';
-      if (detection.noFaceDetected) statusText = 'No Face Detected';
-      else if (detection.multipleFaces) statusText = 'Multiple Faces';
-      else if (detection.lookingDown) statusText = 'Looking Down';
-      else if (detection.lookingLeft) statusText = 'Looking Left';
-      else if (detection.lookingRight) statusText = 'Looking Right';
-      else if (detection.isLookingAway) statusText = 'Looking Away';
-      else if (detection.hasCheatingObjects) statusText = 'Cheating Objects Detected';
+      let statusText = 'Học sinh nghiêm túc';
+      if (detection.noFaceDetected) statusText = 'Không thấy khuôn mặt';
+      else if (detection.multipleFaces) statusText = 'Phát hiện nhiều người xung quanh';
+      else if (detection.lookingDown) statusText = 'Học sinh nhìn xuống';
+      else if (detection.lookingLeft) statusText = 'Học sinh quay sang trái';
+      else if (detection.lookingRight) statusText = 'Học sinh quay sang phải';
+      else if (detection.isLookingAway) statusText = 'Học sinh nhìn ra ngoài';
+      else if (detection.hasCheatingObjects) statusText = 'Phát hiện vật thể gian lận';
 
       ctx.fillText(statusText, 10, 30);
       ctx.fillText(`Confidence: ${(detection.confidence * 100).toFixed(1)}%`, 10, 55);
