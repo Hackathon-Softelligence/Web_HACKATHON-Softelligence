@@ -420,7 +420,7 @@ export function ExamDashboard({ onViewMonitoring }: ExamDashboardProps) {
                       variant="outline"
                       size="sm"
                       onClick={() => onViewMonitoring(exam._id)}
-                      disabled={exam.status === "finished"}
+                      disabled={exam.status === "upcoming"}
                     >
                       <Eye className="w-4 h-4 mr-2" />
                       {exam.status === "ongoing"
@@ -436,14 +436,14 @@ export function ExamDashboard({ onViewMonitoring }: ExamDashboardProps) {
       </Card>
 
       {/* Firebase Test Component */}
-      <Card>
+      {/* <Card>
         <CardHeader>
           <CardTitle>Firebase Connection Test</CardTitle>
         </CardHeader>
         <CardContent>
           <FirebaseTest />
         </CardContent>
-      </Card>
+      </Card> */}
     </div>
   );
 }

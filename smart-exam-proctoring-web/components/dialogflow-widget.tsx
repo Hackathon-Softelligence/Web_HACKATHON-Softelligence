@@ -1,39 +1,24 @@
 "use client";
 
-import { useEffect } from "react";
-
-// Declare custom Dialogflow elements for TypeScript
-declare global {
-  namespace JSX {
-    interface IntrinsicElements {
-      'df-messenger': {
-        location?: string;
-        'project-id'?: string;
-        'agent-id'?: string;
-        'language-code'?: string;
-        'max-query-length'?: string;
-        children?: React.ReactNode;
-      };
-      'df-messenger-chat-bubble': {
-        'chat-title'?: string;
-        children?: React.ReactNode;
-      };
-    }
-  }
-}
+import { useEffect, useState } from "react";
 
 export function DialogflowWidget() {
+  const [isLoaded, setIsLoaded] = useState(false);
+
   useEffect(() => {
     // Add Dialogflow CSS
     const link = document.createElement("link");
     link.rel = "stylesheet";
-    link.href = "https://www.gstatic.com/dialogflow-console/fast/df-messenger/prod/v1/themes/df-messenger-default.css";
+    link.href =
+      "https://www.gstatic.com/dialogflow-console/fast/df-messenger/prod/v1/themes/df-messenger-default.css";
     document.head.appendChild(link);
 
     // Add Dialogflow script
     const script = document.createElement("script");
-    script.src = "https://www.gstatic.com/dialogflow-console/fast/df-messenger/prod/v1/df-messenger.js";
+    script.src =
+      "https://www.gstatic.com/dialogflow-console/fast/df-messenger/prod/v1/df-messenger.js";
     script.async = true;
+    script.onload = () => setIsLoaded(true);
     document.head.appendChild(script);
 
     // Add custom styles
@@ -55,22 +40,33 @@ export function DialogflowWidget() {
 
     // Cleanup function
     return () => {
-      document.head.removeChild(link);
-      document.head.removeChild(script);
-      document.head.removeChild(style);
+      if (document.head.contains(link)) document.head.removeChild(link);
+      if (document.head.contains(script)) document.head.removeChild(script);
+      if (document.head.contains(style)) document.head.removeChild(style);
     };
   }, []);
 
+  // Don't render anything until script is loaded
+  if (!isLoaded) {
+    return null;
+  }
+
   return (
-    <df-messenger
-      location="us-central1"
-      project-id={process.env.PROJECT_ID}
-      agent-id={process.env.AGENT_ID}
-      language-code="en"
-      max-query-length="-1"
-    >
-      <df-messenger-chat-bubble chat-title="exam proctoring chatbot">
-      </df-messenger-chat-bubble>
-    </df-messenger>
+    <div
+      dangerouslySetInnerHTML={{
+        __html: `
+          <df-messenger
+            location="us-central1"
+            project-id="${process.env.NEXT_PUBLIC_PROJECT_ID || ""}"
+            agent-id="${process.env.NEXT_PUBLIC_AGENT_ID || ""}"
+            language-code="en"
+            max-query-length="-1"
+          >
+            <df-messenger-chat-bubble chat-title="exam proctoring chatbot">
+            </df-messenger-chat-bubble>
+          </df-messenger>
+        `,
+      }}
+    />
   );
-} 
+}

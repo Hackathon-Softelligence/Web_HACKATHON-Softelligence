@@ -7,19 +7,8 @@ import { LiveMonitoring } from "./components/live-monitoring";
 import { StudentDetailModal } from "./components/student-detail-modal";
 import { AlertsPanel } from "./components/alerts-panel";
 import { ReportsEvidence } from "./components/reports-evidence";
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
 import { DialogflowWidget } from "./components/dialogflow-widget";
-=======
 import { FirebaseConnectionTest } from "./components/firebase-connection-test";
->>>>>>> Stashed changes
-=======
-import { FirebaseConnectionTest } from "./components/firebase-connection-test";
->>>>>>> Stashed changes
-=======
-import { FirebaseConnectionTest } from "./components/firebase-connection-test";
->>>>>>> Stashed changes
 
 export default function ExamProctoringDashboard() {
   const [currentView, setCurrentView] = useState("dashboard");

@@ -411,7 +411,7 @@ export function LiveMonitoring({
             )}`}
             onClick={() => onStudentSelect(student.id)}
           >
-            <CardContent className="p-4">
+            <CardContent className="p-2">
               {/* Student Header */}
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center space-x-2">

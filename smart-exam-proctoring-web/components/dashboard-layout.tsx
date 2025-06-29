@@ -36,7 +36,7 @@ const navigation = [
   { name: "Exam Dashboard", icon: Monitor, id: "dashboard" },
   { name: "Live Monitoring", icon: Monitor, id: "monitoring" },
   { name: "Reports & Evidence", icon: FileText, id: "reports" },
-  { name: "Firebase Test", icon: Database, id: "firebase-test" },
+  // { name: "Firebase Test", icon: Database, id: "firebase-test" },
   { name: "Settings", icon: Settings, id: "settings" },
 ];
 

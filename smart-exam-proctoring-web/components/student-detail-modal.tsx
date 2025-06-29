@@ -52,173 +52,140 @@ export function StudentDetailModal({
   const [error, setError] = useState<string | null>(null);
   const [studentInfo, setStudentInfo] = useState<any>(null);
   const [firestoreLogs, setFirestoreLogs] = useState<DetectionLog[]>([]);
+  const [isRealtimeConnected, setIsRealtimeConnected] = useState(false);
 
   // Fetch student data from Firestore when modal opens
   useEffect(() => {
     if (!isOpen) return;
 
-    const fetchStudentData = async () => {
-      try {
-        setLoading(true);
-        setError(null);
-        console.log("=== FIRESTORE DATA FETCH START ===");
-        console.log("Fetching Firestore data for document: SE123456");
+    console.log("=== SETTING UP REALTIME SUBSCRIPTION ===");
+    console.log("Subscribing to realtime updates for document: SE123456");
 
-        // Get logs from Firestore for document SE123456 (hardcoded)
-        const logs = await firestoreService.getLogsByStudentId("SE123456");
-        console.log("=== RAW FIRESTORE LOGS ===");
-        console.log("Total logs found:", logs.length);
-        console.log("All logs data:", JSON.stringify(logs, null, 2));
+    // Set up realtime subscription
+    const unsubscribe = firestoreService.subscribeToLogs("SE123456", (logs) => {
+      console.log("=== REALTIME UPDATE RECEIVED ===");
+      console.log("Realtime logs received:", logs);
+      console.log("Total logs:", logs.length);
 
-        if (logs && logs.length > 0) {
-          console.log("=== PROCESSING FIRESTORE DATA ===");
+      setIsRealtimeConnected(true); // Set connection status
 
-          // Log each individual log
-          logs.forEach((log, index) => {
-            console.log(`--- Log ${index + 1} ---`);
-            console.log("ID:", log.id);
-            console.log("Name:", log.name);
-            console.log("Student No:", log.studentNo);
-            console.log("Status:", log.status);
-            console.log("Image URL:", log.imageUrl);
-            console.log("Timestamp type:", typeof log.timestamp);
-            console.log("Timestamp value:", log.timestamp);
-            console.log(
-              "Timestamp instanceof Date:",
-              log.timestamp instanceof Date
-            );
-            if (log.timestamp instanceof Date) {
-              console.log(
-                "Timestamp toISOString:",
-                log.timestamp.toISOString()
-              );
-              console.log(
-                "Timestamp toLocaleString:",
-                log.timestamp.toLocaleString("vi-VN")
-              );
-            }
-            console.log("Raw log object:", log);
-          });
+      if (logs && logs.length > 0) {
+        console.log("=== PROCESSING REALTIME FIRESTORE DATA ===");
 
-          // Transform Firestore logs to Alert format
-          const transformedAlerts: Alert[] = logs.map((log) => {
-            return {
-              id: log.id,
-              type: log.status, // Use status as alert type
-              description: generateDescription(log.status),
-              timestamp: safeParseTimestamp(log.timestamp),
-              severity: calculateSeverity(log.status),
-            };
-          });
+        // Log each individual log
+        logs.forEach((log, index) => {
+          console.log(`--- Realtime Log ${index + 1} ---`);
+          console.log("ID:", log.id);
+          console.log("Name:", log.name);
+          console.log("Student No:", log.studentNo);
+          console.log("Status:", log.status);
+          console.log("Image URL:", log.imageUrl);
+          console.log("Timestamp:", log.timestamp);
+        });
 
-          console.log("=== TRANSFORMED ALERTS ===");
-          console.log("Transformed alerts from Firestore:", transformedAlerts);
-          console.log(
-            "Alerts before sorting:",
-            transformedAlerts.map((a) => ({
-              id: a.id,
-              timestamp: a.timestamp,
-              timestampType: typeof a.timestamp,
-              parsedDate: new Date(a.timestamp),
-              isValid: !isNaN(new Date(a.timestamp).getTime()),
-            }))
-          );
-
-          // Sort alerts by timestamp (newest first)
-          transformedAlerts.sort((a, b) => {
-            try {
-              const dateA = new Date(a.timestamp);
-              const dateB = new Date(b.timestamp);
-
-              // Check if dates are valid
-              if (isNaN(dateA.getTime()) || isNaN(dateB.getTime())) {
-                console.warn("Invalid timestamp found during sorting:", {
-                  a: a.timestamp,
-                  b: b.timestamp,
-                });
-                return 0; // Keep original order if invalid
-              }
-
-              return dateB.getTime() - dateA.getTime(); // Descending order (newest first)
-            } catch (error) {
-              console.error("Error sorting alerts by timestamp:", error);
-              return 0; // Keep original order if error
-            }
-          });
-
-          console.log(
-            "Alerts after sorting:",
-            transformedAlerts.map((a) => ({
-              id: a.id,
-              timestamp: a.timestamp,
-              parsedDate: new Date(a.timestamp),
-            }))
-          );
-
-          setAlerts(transformedAlerts);
-          setFirestoreLogs(logs);
-
-          // Set student info from the first log
-          const firstLog = logs[0];
-          console.log("=== STUDENT INFO FROM FIRST LOG ===");
-          console.log("First log data:", firstLog);
-          console.log("Student name from log:", firstLog.name);
-          console.log("Student number from log:", firstLog.studentNo);
-
-          const studentInfoData = {
-            id: "SE123456", // Hardcoded to SE123456
-            name: firstLog.name,
-            studentId: firstLog.studentNo,
-            room: "Online", // Default room for Firestore students
-            riskLevel: calculateRiskLevel(transformedAlerts),
-            alerts: transformedAlerts.length,
-            examStartTime: "14:00:00",
-            currentTime: new Date().toLocaleTimeString(),
+        // Transform Firestore logs to Alert format
+        const transformedAlerts: Alert[] = logs.map((log) => {
+          return {
+            id: log.id,
+            type: log.status, // Use status as alert type
+            description: generateDescription(log.status),
+            timestamp: safeParseTimestamp(log.timestamp),
+            severity: calculateSeverity(log.status),
           };
+        });
 
-          console.log("=== FINAL STUDENT INFO ===");
-          console.log("Setting student info from Firestore:", studentInfoData);
-          setStudentInfo(studentInfoData);
-        } else {
-          // No logs found for this student
-          console.log("=== NO LOGS FOUND ===");
-          console.log("No Firestore logs found for document: SE123456");
-
-          // Use fallback data
-          const fallbackStudentInfo = {
-            id: "SE123456", // Hardcoded to SE123456
-            name: "Student SE123456",
-            studentId: "SE123456",
-            room: "Online",
-            riskLevel: "low" as const,
-            alerts: 0,
-            examStartTime: "14:00:00",
-            currentTime: new Date().toLocaleTimeString(),
-          };
-
-          console.log("Using fallback student info:", fallbackStudentInfo);
-          setStudentInfo(fallbackStudentInfo);
-          setAlerts([]);
-          setError(null);
-        }
-
-        console.log("=== FIRESTORE DATA FETCH COMPLETE ===");
-      } catch (err) {
-        console.error("=== FIRESTORE FETCH ERROR ===");
-        console.error("Firestore fetch error:", err);
-        setError(
-          `Firestore Error: ${
-            err instanceof Error ? err.message : "Unknown error"
-          }`
+        console.log("=== REALTIME TRANSFORMED ALERTS ===");
+        console.log(
+          "Transformed alerts from realtime Firestore:",
+          transformedAlerts
         );
-        setAlerts([]);
-      } finally {
-        setLoading(false);
-      }
-    };
 
-    fetchStudentData();
-  }, [isOpen]); // Remove studentId dependency, only depend on isOpen
+        // Sort alerts by timestamp (newest first)
+        transformedAlerts.sort((a, b) => {
+          try {
+            const dateA = new Date(a.timestamp);
+            const dateB = new Date(b.timestamp);
+
+            // Check if dates are valid
+            if (isNaN(dateA.getTime()) || isNaN(dateB.getTime())) {
+              console.warn("Invalid timestamp found during realtime sorting:", {
+                a: a.timestamp,
+                b: b.timestamp,
+              });
+              return 0; // Keep original order if invalid
+            }
+
+            return dateB.getTime() - dateA.getTime(); // Descending order (newest first)
+          } catch (error) {
+            console.error("Error sorting realtime alerts by timestamp:", error);
+            return 0; // Keep original order if error
+          }
+        });
+
+        console.log("Realtime alerts after sorting:", transformedAlerts);
+
+        setAlerts(transformedAlerts);
+        setFirestoreLogs(logs);
+
+        // Set student info from the first log
+        const firstLog = logs[0];
+
+        const studentInfoData = {
+          id: "SE123456", // Hardcoded to SE123456
+          name: firstLog.name,
+          studentId: firstLog.studentNo,
+          room: "Online", // Default room for Firestore students
+          riskLevel: calculateRiskLevel(transformedAlerts),
+          alerts: transformedAlerts.length,
+          examStartTime: "14:00:00",
+          currentTime: new Date().toLocaleTimeString(),
+        };
+
+        console.log("=== REALTIME STUDENT INFO UPDATE ===");
+        console.log(
+          "Updating student info from realtime Firestore:",
+          studentInfoData
+        );
+        setStudentInfo(studentInfoData);
+        setError(null);
+      } else {
+        // No logs found
+        console.log("=== NO REALTIME LOGS FOUND ===");
+        console.log(
+          "No Firestore logs found in realtime for document: SE123456"
+        );
+
+        // Use fallback data
+        const fallbackStudentInfo = {
+          id: "SE123456", // Hardcoded to SE123456
+          name: "Student SE123456",
+          studentId: "SE123456",
+          room: "Online",
+          riskLevel: "low" as const,
+          alerts: 0,
+          examStartTime: "14:00:00",
+          currentTime: new Date().toLocaleTimeString(),
+        };
+
+        console.log(
+          "Using fallback student info for realtime:",
+          fallbackStudentInfo
+        );
+        setStudentInfo(fallbackStudentInfo);
+        setAlerts([]);
+        setError(null);
+      }
+
+      console.log("=== REALTIME UPDATE COMPLETE ===");
+    });
+
+    // Cleanup subscription when modal closes
+    return () => {
+      console.log("=== CLEANING UP REALTIME SUBSCRIPTION ===");
+      setIsRealtimeConnected(false);
+      unsubscribe();
+    };
+  }, [isOpen]); // Only depend on isOpen
 
   // Helper function to format timestamp nicely
   const formatTimestamp = (timestamp: string): string => {
@@ -544,8 +511,20 @@ export function StudentDetailModal({
             {/* Recent Alerts */}
             <Card>
               <CardHeader>
-                <CardTitle className="text-sm">
-                  Recent Alerts (Firestore)
+                <CardTitle className="text-sm flex items-center justify-between">
+                  <span>Recent Alerts (Firestore)</span>
+                  <div className="flex items-center space-x-2">
+                    <div
+                      className={`w-2 h-2 rounded-full ${
+                        isRealtimeConnected
+                          ? "bg-green-400 animate-pulse"
+                          : "bg-gray-400"
+                      }`}
+                    ></div>
+                    <span className="text-xs text-gray-500">
+                      {isRealtimeConnected ? "Realtime" : "Connecting..."}
+                    </span>
+                  </div>
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-3 max-h-48 overflow-y-auto">
@@ -643,59 +622,6 @@ export function StudentDetailModal({
                 </Button>
               </CardContent>
             </Card>
-
-            {/* Debug Info - Remove in production */}
-            {process.env.NODE_ENV === "development" && (
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-sm">
-                    Debug Info (Firestore - SE123456)
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-2 text-xs">
-                  <div>
-                    <strong>Document ID:</strong> SE123456 (hardcoded)
-                  </div>
-                  <div>
-                    <strong>Modal Student ID:</strong> {studentId || "None"}
-                  </div>
-                  <div>
-                    <strong>Exam ID:</strong> {examId || "None"}
-                  </div>
-                  <div>
-                    <strong>Firestore Logs Count:</strong>{" "}
-                    {firestoreLogs.length}
-                  </div>
-                  <div>
-                    <strong>Alerts Count:</strong> {alerts.length}
-                  </div>
-                  <div>
-                    <strong>Loading:</strong> {loading ? "Yes" : "No"}
-                  </div>
-                  <div>
-                    <strong>Error:</strong> {error || "None"}
-                  </div>
-                  <div>
-                    <strong>Latest Image URL:</strong>{" "}
-                    {firestoreLogs[0]?.imageUrl || "None"}
-                  </div>
-                  <div>
-                    <strong>Student Info:</strong>
-                    <pre className="mt-1 text-xs bg-gray-100 p-1 rounded">
-                      {JSON.stringify(studentInfo, null, 2)}
-                    </pre>
-                  </div>
-                  <div>
-                    <strong>Latest Firestore Log:</strong>
-                    <pre className="mt-1 text-xs bg-gray-100 p-1 rounded max-h-20 overflow-y-auto">
-                      {firestoreLogs.length > 0
-                        ? JSON.stringify(firestoreLogs[0], null, 2)
-                        : "No logs"}
-                    </pre>
-                  </div>
-                </CardContent>
-              </Card>
-            )}
           </div>
         </div>
       </DialogContent>
